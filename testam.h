@@ -8,7 +8,7 @@ redefine RecIdToInt() and IntToRecId() */
 typedef int RecIdType;		/* type for recid */
 
 #define RecIdToInt(recid)	(recid)	/* converts record id to int */
-#define IntToRecId(intval)	(intval) /* converts int to record id */
+#define IntToRecId(intval)	(intval) /* converts int to record id  */
 
 /*
  *  Attribute types
