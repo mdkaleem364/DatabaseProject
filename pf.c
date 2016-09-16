@@ -55,7 +55,7 @@ RETURN VALUE:
 	The desired index, or
 	-1	if not found
 
-*****************************************************************************/
+**********************            *******************************************************/
 {
 int i;
 
@@ -93,7 +93,7 @@ PFreadfcn(int fd,int pagenum,PFfpage *buf)
 	/* file descriptor */
  /* page number */
 
-/****************************************************************************
+/*********************************       *******************************************
 SPECIFICATIONS:
 	Read the paged numbered "pagenum" from the file indexed by "fd"
 	into the page buffer "buf".
