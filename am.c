@@ -3,7 +3,7 @@
 # include "pf.h"
 
 
-/* splits a leaf node  testing*/
+/* splits a leaf node  */
 
 AM_SplitLeaf(fileDesc,pageBuf,pageNum,attrLength,recId,value,status,index,key)
 int fileDesc; /* file descriptor */
