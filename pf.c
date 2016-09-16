@@ -13,7 +13,7 @@
 
 int PFerrno = PFE_OK;	/* last error message */
 
-static PFftab_ele PFftab[PF_FTAB_SIZE]; /* table of opened files */
+static PFftab_ele PFftab[PF_FTAB_SIZE]; /* table of opened files    */
 
 /* true if file descriptor fd is invaild */
 #define PFinvalidFd(fd) ((fd) < 0 || (fd) >= PF_FTAB_SIZE \
