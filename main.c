@@ -1,5 +1,6 @@
 /* testpf.c */
 #include <stdio.h>
+#include <stdlib.h>
 #include <limits.h>
 #include "pf.h"
 #include "pftypes.h"
@@ -7,33 +8,9 @@
 #define FILE1	"file1"
 #define FILE2	"file2"
 
-void main(){
-	int error;
-	int i;
-	int pagenum,*buf;
-	int *buf1,*buf2;
-	int fd1,fd2;
-	/* create a few files */
-	if ((error=PF_CreateFile(FILE1))!= PFE_OK){
-		PF_PrintError("file1");
-		exit(1);
-	}
-	printf("file1 created\n");
-
-	if ((error=PF_CreateFile(FILE2))!= PFE_OK){
-		PF_PrintError("file2");
-		exit(1);
-	}
-	printf("file2 created\n");
-	/* write to file1 */
-//	writefile(FILE1);
-	sequentialWrite(FILE1);
-	readfile(FILE1);
-
-
-}
-
-
+#define LOW_LIMIT(salary) salary<500?1:0
+#define MID_LIMIT(salary) (salary>=500&&salary<1000)?1:0
+#define HIGH_LIMIT(salary) salary>1000?1:0
 
 
 
@@ -333,7 +310,7 @@ int fd1,fd2;
 void sequentialWriteInternal(int fd,int data){
 	int *buf;
 	int error,pagenum;
-	if ((error=PF_AllocPage(fd,&pagenum,&buf))!= PFE_OK){
+	if ((error=PF_AllocPage(fd,&pagenum,(char **)&buf))!= PFE_OK){
 		PF_PrintError("first buffer\n");
 		exit(1);
 	}
@@ -344,15 +321,104 @@ void sequentialWriteInternal(int fd,int data){
 		exit(1);
 	}
 }
+int extractDataFromInputString(char * input){
+	int result=-1;
+	int data=0;
+	int lengthOfInput=strlen(input);
+	if(lengthOfInput>0){
+		int index=0,numberOfCommaRead=0;
+
+		while(index<lengthOfInput && numberOfCommaRead<5){
+			if(input[index++]==','){
+				numberOfCommaRead++;
+			}
+//			else{
+//				printf("Error in data\n");
+//				return result;
+//			}
+		}
+		//now index pointing to location of data start
+		if(index<lengthOfInput){
+			if(toupper(input[index])=='M'){
+				//Male is at sixth bit in bitmap representation.
+				data+=64;index++;
+			}else if(toupper(input[index])=='F'){
+				//Female is at fifth bit in bitmap representation.
+				data+=32;index++;
+			}else{
+				printf("Error in data\n");
+				return result;
+			}
+			index++;
+			if(index<lengthOfInput){
+				char salary[32];
+				int indexForsalary=0;
+				while(index<lengthOfInput && !(input[index]==','||input[index]=='\n'||input[index]=='\r')){
+					salary[indexForsalary++]=input[index++];
+				}
+				if(indexForsalary>0){
+					int intSalary=atoi(salary);
+					if(LOW_LIMIT(intSalary)){
+						data+=16;
+					}else if(MID_LIMIT(intSalary)){
+						data+=8;
+					}else if(HIGH_LIMIT(intSalary)){
+						data+=4;
+					}
+					index++;
+					if(index<lengthOfInput){
+						char maritalStatus=input[index];
+						if(toupper(maritalStatus)=='S' ){
+							data+=2;
+						}else if(toupper(maritalStatus)=='M'){
+							data+=1;
+						}
+						//If it reaches here means data format is correct
+						result=data;
+					}
+				}
+			}
+
+		}
+	}
+
+	return result;
+}
 void sequentialWrite(char *fname){
 	int fd,error;
+	//we will read input file line by line and store in input[]
+	char input1[]="0504103922,D0504002,141231,22312327,0.00,F,700,S";
+	char input2[]="0504103922,D0504002,141231,22312327,0.00,M,567,M";
+	char input3[]="0504103922,D0504002,141231,22312327,0.00,M,1200,S";
+	char input4[]="0504103922,D0504002,141231,22312327,0.00,F,100,S";
+
+	extractDataFromInputString(input1);
 	if ((fd=PF_OpenFile(fname))<0){
 		PF_PrintError("open file1");
 		exit(1);
 	}
-	for(int i=0;i<70000;i++){
-		sequentialWriteInternal(fd,i);
+	int dataToBeStored=0;
+	dataToBeStored=extractDataFromInputString(input1);
+	if(dataToBeStored>=0){
+		sequentialWriteInternal(fd,dataToBeStored);
 	}
+
+	dataToBeStored=extractDataFromInputString(input2);
+	if(dataToBeStored>=0){
+		sequentialWriteInternal(fd,dataToBeStored);
+	}
+
+	dataToBeStored=extractDataFromInputString(input3);
+	if(dataToBeStored>=0){
+		sequentialWriteInternal(fd,dataToBeStored);
+	}
+
+	dataToBeStored=extractDataFromInputString(input4);
+	if(dataToBeStored>=0){
+		sequentialWriteInternal(fd,dataToBeStored);
+	}
+
+
 	if ((error=PF_CloseFile(fd))!= PFE_OK){
 		PF_PrintError("close file1\n");
 		exit(1);
@@ -475,3 +541,28 @@ int pagenum;
 	printf("eof reached\n");
 
 }
+int main(){
+	int error;
+	/* create a few files */
+
+	if ((error=PF_CreateFile(FILE1))!= PFE_OK){
+		PF_PrintError("file1");
+		exit(1);
+	}
+	printf("file1 created\n");
+
+//	if ((error=PF_CreateFile(FILE2))!= PFE_OK){
+//		PF_PrintError("file2");
+//		exit(1);
+//	}
+//	printf("file2 created\n");
+	/* write to file1 */
+//	writefile(FILE1);
+
+	sequentialWrite(FILE1);
+	readfile(FILE1);
+
+return 0;
+}
+
+
