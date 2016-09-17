@@ -1,12 +1,43 @@
 /* testpf.c */
 #include <stdio.h>
+#include <limits.h>
 #include "pf.h"
 #include "pftypes.h"
 
 #define FILE1	"file1"
 #define FILE2	"file2"
 
-main()
+void main(){
+	int error;
+	int i;
+	int pagenum,*buf;
+	int *buf1,*buf2;
+	int fd1,fd2;
+	/* create a few files */
+	if ((error=PF_CreateFile(FILE1))!= PFE_OK){
+		PF_PrintError("file1");
+		exit(1);
+	}
+	printf("file1 created\n");
+
+	if ((error=PF_CreateFile(FILE2))!= PFE_OK){
+		PF_PrintError("file2");
+		exit(1);
+	}
+	printf("file2 created\n");
+	/* write to file1 */
+//	writefile(FILE1);
+	sequentialWrite(FILE1);
+	readfile(FILE1);
+
+
+}
+
+
+
+
+
+main2()
 {
 int error;
 int i;
@@ -294,7 +325,39 @@ int fd1,fd2;
 	printf("hash table:\n");
 	PFhashPrint();
 }
-
+/**
+ * write data in file having file descriptor as fd.
+ * data is written sequentially so we allocate the page write data and unfix data page as we do not require it again
+ *
+ */
+void sequentialWriteInternal(int fd,int data){
+	int *buf;
+	int error,pagenum;
+	if ((error=PF_AllocPage(fd,&pagenum,&buf))!= PFE_OK){
+		PF_PrintError("first buffer\n");
+		exit(1);
+	}
+	*((int *)buf) = data;
+	//unfix as it is sequential write
+	if ((error=PF_UnfixPage(fd,pagenum,TRUE))!= PFE_OK){
+		PF_PrintError("unfix buffer\n");
+		exit(1);
+	}
+}
+void sequentialWrite(char *fname){
+	int fd,error;
+	if ((fd=PF_OpenFile(fname))<0){
+		PF_PrintError("open file1");
+		exit(1);
+	}
+	for(int i=0;i<70000;i++){
+		sequentialWriteInternal(fd,i);
+	}
+	if ((error=PF_CloseFile(fd))!= PFE_OK){
+		PF_PrintError("close file1\n");
+		exit(1);
+	}
+}
 
 /************************************************************
 Open the File.
@@ -339,6 +402,24 @@ int error;
 			exit(1);
 		}
 	}
+	int j;
+	for (j=i; j< PF_MAX_BUFS+PF_MAX_BUFS;j++){
+			if ((error=PF_AllocPage(fd,&pagenum,&buf))!= PFE_OK){
+				PF_PrintError("first buffer\n");
+				exit(1);
+			}
+			*((int *)buf) = j;
+			printf("allocated page %d\n",pagenum);
+		}
+	/* unfix these pages */
+	for (i=PF_MAX_BUFS; i < PF_MAX_BUFS*2; i++){
+		if ((error=PF_UnfixPage(fd,i,TRUE))!= PFE_OK){
+			PF_PrintError("unfix buffer\n");
+			exit(1);
+		}
+	}
+
+
 
 	/* close the file */
 	if ((error=PF_CloseFile(fd))!= PFE_OK){
