@@ -4,13 +4,15 @@
 #include <limits.h>
 #include "pf.h"
 #include "pftypes.h"
+#include <string.h>
+#include <time.h>
 
 #define FILE1	"file1"
 #define FILE2	"file2"
 
 #define LOW_LIMIT(salary) salary<500?1:0
 #define MID_LIMIT(salary) (salary>=500&&salary<1000)?1:0
-#define HIGH_LIMIT(salary) salary>1000?1:0
+#define HIGH_LIMIT(salary) salary>=1000?1:0
 
 
 
@@ -307,120 +309,149 @@ int fd1,fd2;
  * data is written sequentially so we allocate the page write data and unfix data page as we do not require it again
  *
  */
-void sequentialWriteInternal(int fd,int data){
+void sequentialWriteIndex(int fd,int data,int* hashArray,int pageNumber){
+	int *buf;
+	int error,pagenum;
+	char updateIndexArray[100];
+	char dataToWrite[100],pageNumberStr[20];
+	if(hashArray[data]<0){
+		if ((error=PF_AllocPage(fd,&pagenum,(char **)&buf))!= PFE_OK){
+			PF_PrintError("first buffer\n");
+			exit(1);
+		}
+		hashArray[data] = pagenum;
+		sprintf(dataToWrite,"%d,%d",data,pageNumber);
+		//*((int *)buf) = data;
+		strcpy(buf,dataToWrite);
+		//unfix as it is sequential write
+		if ((error=PF_UnfixPage(fd,pagenum,TRUE))!= PFE_OK){
+			PF_PrintError("unfix buffer\n");
+			exit(1);
+		}
+	}
+	else{
+		pagenum = hashArray[data]-1;
+		if((error=PF_GetNextPage(fd,&pagenum,&buf))== PFE_OK){
+			//strcpy(updateIndexArray,buf);
+			sprintf(pageNumberStr,"%d",pageNumber);
+			strcat(buf,",");
+			strcat(buf,pageNumberStr);
+			if ((error=PF_UnfixPage(fd,pagenum,FALSE))!= PFE_OK){
+				PF_PrintError("unfix");
+				exit(1);
+			}
+		}
+	}
+
+	/*while ((error=PF_GetNextPage(fd,&pagenum,&buf))== PFE_OK){
+			printf("got page %d, %d\n",pagenum,*buf);
+			if ((error=PF_UnfixPage(fd,pagenum,FALSE))!= PFE_OK){
+				PF_PrintError("unfix");
+				exit(1);
+			}
+		}*/
+
+}
+
+int sequentialWriteInternalData(int fd,char* data){
 	int *buf;
 	int error,pagenum;
 	if ((error=PF_AllocPage(fd,&pagenum,(char **)&buf))!= PFE_OK){
 		PF_PrintError("first buffer\n");
 		exit(1);
 	}
-	*((int *)buf) = data;
+	//*((int *)buf) = data;
+	printf("data written to memory %s \n",data);
+	strcpy(buf,data);
 	//unfix as it is sequential write
 	if ((error=PF_UnfixPage(fd,pagenum,TRUE))!= PFE_OK){
 		PF_PrintError("unfix buffer\n");
 		exit(1);
 	}
+	return pagenum;
 }
+
 int extractDataFromInputString(char * input){
 	int result=-1;
 	int data=0;
-	int lengthOfInput=strlen(input);
-	if(lengthOfInput>0){
-		int index=0,numberOfCommaRead=0;
-
-		while(index<lengthOfInput && numberOfCommaRead<5){
-			if(input[index++]==','){
-				numberOfCommaRead++;
-			}
-//			else{
-//				printf("Error in data\n");
-//				return result;
-//			}
-		}
-		//now index pointing to location of data start
-		if(index<lengthOfInput){
-			if(toupper(input[index])=='M'){
-				//Male is at sixth bit in bitmap representation.
-				data+=64;index++;
-			}else if(toupper(input[index])=='F'){
-				//Female is at fifth bit in bitmap representation.
-				data+=32;index++;
-			}else{
-				printf("Error in data\n");
-				return result;
-			}
-			index++;
-			if(index<lengthOfInput){
-				char salary[32];
-				int indexForsalary=0;
-				while(index<lengthOfInput && !(input[index]==','||input[index]=='\n'||input[index]=='\r')){
-					salary[indexForsalary++]=input[index++];
-				}
-				if(indexForsalary>0){
-					int intSalary=atoi(salary);
-					if(LOW_LIMIT(intSalary)){
-						data+=16;
-					}else if(MID_LIMIT(intSalary)){
-						data+=8;
-					}else if(HIGH_LIMIT(intSalary)){
-						data+=4;
-					}
-					index++;
-					if(index<lengthOfInput){
-						char maritalStatus=input[index];
-						if(toupper(maritalStatus)=='S' ){
-							data+=2;
-						}else if(toupper(maritalStatus)=='M'){
-							data+=1;
-						}
-						//If it reaches here means data format is correct
-						result=data;
-					}
-				}
-			}
-
-		}
+	char* dataTokensToRead ;
+	dataTokensToRead = strtok(input,",");
+	dataTokensToRead = strtok(NULL,",");
+	dataTokensToRead = strtok(NULL,",");
+	dataTokensToRead = strtok(NULL,",");
+	dataTokensToRead = strtok(NULL,",");
+	dataTokensToRead = strtok(NULL,",");
+	if(toupper(dataTokensToRead[0])=='M'){
+		//Male is at sixth bit in bitmap representation.
+			data+=64;
+		}else if(toupper(dataTokensToRead[0])=='F'){
+			//Female is at fifth bit in bitmap representation.
+			data+=32;
+		}else{
+			printf("Error in data\n");
+			return result;
 	}
+	dataTokensToRead = strtok(NULL,",");
+	int intSalary=atoi(dataTokensToRead);
+	if(LOW_LIMIT(intSalary)){
+		data+=16;
+	}else if(MID_LIMIT(intSalary)){
+		data+=8;
+	}else if(HIGH_LIMIT(intSalary)){
+		data+=4;
+	}
+	dataTokensToRead = strtok(NULL,",");
 
+
+	if(toupper(dataTokensToRead[0])=='S' ){
+		data+=2;
+	}else if(toupper(dataTokensToRead[0])=='M'){
+		data+=1;
+	}
+		//If it reaches here means data format is correct
+	result=data;
 	return result;
 }
-void sequentialWrite(char *fname){
-	int fd,error;
-	//we will read input file line by line and store in input[]
-	char input1[]="0504103922,D0504002,141231,22312327,0.00,F,700,S";
-	char input2[]="0504103922,D0504002,141231,22312327,0.00,M,567,M";
-	char input3[]="0504103922,D0504002,141231,22312327,0.00,M,1200,S";
-	char input4[]="0504103922,D0504002,141231,22312327,0.00,F,100,S";
+void sequentialWrite(char *fname1,char * fname2,int* hashArray){
+	int fd1,fd2,error,pageNumber;
+	char input[100],dataInput[100];
 
-	extractDataFromInputString(input1);
-	if ((fd=PF_OpenFile(fname))<0){
+	FILE* fp;
+	int dataToBeStored=0;
+
+	//extractDataFromInputString(input1);
+	if ((fd1=PF_OpenFile(fname1))<0){
 		PF_PrintError("open file1");
 		exit(1);
 	}
-	int dataToBeStored=0;
-	dataToBeStored=extractDataFromInputString(input1);
-	if(dataToBeStored>=0){
-		sequentialWriteInternal(fd,dataToBeStored);
+
+	if ((fd2=PF_OpenFile(fname2))<0){
+		PF_PrintError("open file2");
+		exit(1);
 	}
 
-	dataToBeStored=extractDataFromInputString(input2);
-	if(dataToBeStored>=0){
-		sequentialWriteInternal(fd,dataToBeStored);
+	fp = fopen("testingData","r");
+	while(fgets(input,100,fp)){
+		printf("%s",input);
+		strcpy(dataInput,input);
+		dataToBeStored=extractDataFromInputString(input);
+		printf("%s",dataInput);
+		if(dataToBeStored>=0){
+			pageNumber = sequentialWriteInternalData(fd2,dataInput);
+			sequentialWriteIndex(fd1,dataToBeStored,hashArray,pageNumber);
+
+		}
+		memset(&input,0,sizeof(input));
 	}
+	fclose(fp);
 
-	dataToBeStored=extractDataFromInputString(input3);
-	if(dataToBeStored>=0){
-		sequentialWriteInternal(fd,dataToBeStored);
-	}
-
-	dataToBeStored=extractDataFromInputString(input4);
-	if(dataToBeStored>=0){
-		sequentialWriteInternal(fd,dataToBeStored);
-	}
-
-
-	if ((error=PF_CloseFile(fd))!= PFE_OK){
+	if ((error=PF_CloseFile(fd1))!= PFE_OK){
 		PF_PrintError("close file1\n");
+		exit(1);
+	}
+
+	if ((error=PF_CloseFile(fd2))!= PFE_OK){
+		PF_PrintError("close file2\n");
 		exit(1);
 	}
 }
@@ -517,6 +548,25 @@ int fd;
 		exit(1);
 	}
 }
+readfileData(fname)
+char *fname;
+{
+int error;
+int *buf;
+int pagenum;
+int fd;
+
+	printf("opening %s\n",fname);
+	if ((fd=PF_OpenFile(fname))<0){
+		PF_PrintError("open file");
+		exit(1);
+	}
+	printfileData(fd);
+	if ((error=PF_CloseFile(fd))!= PFE_OK){
+		PF_PrintError("close file");
+		exit(1);
+	}
+}
 
 printfile(fd)
 int fd;
@@ -541,26 +591,326 @@ int pagenum;
 	printf("eof reached\n");
 
 }
+printfileData(fd)
+int fd;
+{
+int error;
+int *buf;
+int pagenum;
+
+	printf("reading file\n");
+	pagenum = -1;
+	while ((error=PF_GetNextPage(fd,&pagenum,&buf))== PFE_OK){
+		printf("got page %d, %s\n",pagenum,buf);
+		if ((error=PF_UnfixPage(fd,pagenum,FALSE))!= PFE_OK){
+			PF_PrintError("unfix");
+			exit(1);
+		}
+	}
+	if (error != PFE_EOF){
+		PF_PrintError("not eof\n");
+		exit(1);
+	}
+	printf("eof reached\n");
+
+}
+struct QueryParam{
+	char gender;
+	char maritalStatus;
+	int salary;
+};
+struct QueryParam extractParamFromInput(char* input){
+	char localInput[100];
+	struct QueryParam queryParam;
+	int index = 0;
+	char* pch = NULL;
+	//printf("data : %s\n",input);
+	strcpy(localInput,input);
+	pch = strtok(localInput,",");
+	while(index<5){
+
+		//printf("data : %s\n",pch);
+		index++;
+		pch = strtok(NULL,",");
+	}
+	queryParam.gender = *pch;
+	pch = strtok(NULL,",");
+	queryParam.salary = atoi(pch);
+	pch = strtok(NULL,",");
+	queryParam.maritalStatus = *pch;
+
+	return queryParam;
+}
+int areEqual(struct QueryParam queryParamToSearch,struct QueryParam queryParamFromData)
+{
+	if(queryParamToSearch.gender!=queryParamFromData.gender)
+		return 0;
+	if(queryParamToSearch.salary!=queryParamFromData.salary)
+		return 0;
+	if(queryParamToSearch.maritalStatus!=queryParamFromData.maritalStatus)
+		return 0;
+	return 1;
+}
+int getRandomNum()
+
+{
+    int randomnumber;
+    srand(time(NULL));
+    randomnumber = rand() % 10;
+    printf("random number : %d\n", randomnumber);
+    return randomnumber;
+}
+void accessDataUsingindex(char* fname1,char*fname2,int* hashArray){
+	int *buf,*dataBuf;
+	FILE* fp,*fpNumQueries,*fpNumBlockAcess,*fpExeTime;
+	struct QueryParam queryParamToSearch,queryParamFromData;
+	int dataToBeStored,pageNumber,pagenum,numBlockAcess;
+	int fd1,fd2,error;
+	char input[100],dataInput[100],inputReadFromindex[100],dataRead[100];
+	char* ptrToData = NULL,*saved;
+	int countOfQury = 2,randomNumber,indexToFile = 0,queryProcessed = 0;
+	clock_t t;
+	double time_taken;
+
+	if ((fd1=PF_OpenFile(fname1))<0){
+		PF_PrintError("open file1");
+		exit(1);
+	}
+
+	if ((fd2=PF_OpenFile(fname2))<0){
+		PF_PrintError("open file2");
+		exit(1);
+	}
+
+	fpNumBlockAcess = fopen("numBlockAccess","w");
+	fpNumQueries = fopen("numQuries","w");
+	fpExeTime = fopen("exeTime","w");
+	fclose(fpNumBlockAcess);
+	fclose(fpNumQueries);
+	fclose(fpExeTime);
+
+	countOfQury =2;
+	while(countOfQury<=10000){
+
+		t = clock();
+		fp = fopen("query","r");
+		fpNumBlockAcess = fopen("numBlockAccess","a");
+		fpNumQueries = fopen("numQuries","a");
+		randomNumber = getRandomNum();
+
+		//fseek (fp, randomNumber*100, SEEK_SET);
+		numBlockAcess = 0;
+		queryProcessed = 0;
+		indexToFile=0;
+		while(1){
+
+			if(!fgets(input,100,fp)){
+
+				if(queryProcessed<countOfQury){
+					fclose(fp);
+					fp = fopen("query","r");
+					memset(&input,0,sizeof(input));
+					memset(&dataInput,0,sizeof(dataInput));
+					continue;
+				}
+				else break;
+			}
+			else{
+				if(indexToFile<randomNumber){
+					indexToFile++;
+					continue;
+				}
+			}
+			if(queryProcessed>=countOfQury)
+				break;
+			queryProcessed++;
+			printf("%s\n",input);
+			strcpy(dataInput,input);
+			queryParamToSearch = extractParamFromInput(dataInput);
+			dataToBeStored=extractDataFromInputString(input);
+			//printf("%s",dataInput);
+			if(dataToBeStored>=0){
+				pagenum = hashArray[dataToBeStored]-1;
+				if((error=PF_GetNextPage(fd1,&pagenum,&buf))== PFE_OK){
+					numBlockAcess++;
+					strcpy(inputReadFromindex,buf);
+					ptrToData = strtok_r(inputReadFromindex,",",&saved);
+					ptrToData = strtok_r(NULL,",",&saved);
+					while(ptrToData!=NULL){
+						pageNumber = atoi(ptrToData)-1;
+						if((error=PF_GetNextPage(fd2,&pageNumber,&dataBuf))== PFE_OK){
+							strcpy(dataRead,dataBuf);
+							numBlockAcess++;
+							//printf("data : %s\n",dataRead);
+							queryParamFromData = extractParamFromInput(dataRead);
+							if(areEqual(queryParamToSearch,queryParamFromData)){
+								//printf("data found at page number : %d\n",pageNumber);
+							}
+							if ((error=PF_UnfixPage(fd2,pageNumber,FALSE))!= PFE_OK){
+								PF_PrintError("unfix");
+								exit(1);
+							}
+						}
+
+						ptrToData = strtok_r(NULL,",",&saved);
+						//printf("page number : %s\n",ptrToData);
+					}
+					if ((error=PF_UnfixPage(fd1,pagenum,FALSE))!= PFE_OK){
+						PF_PrintError("unfix");
+						exit(1);
+					}
+				}
+			}
+			//queryParamToSearch = extractParamFromInput(dataInput);
+			//printf("input data : %c : %d : %c\n",queryParamToSearch.gender,queryParamToSearch.salary,queryParamToSearch.maritalStatus);
+			memset(&input,0,sizeof(input));
+			memset(&dataInput,0,sizeof(dataInput));
+		}
+
+		fprintf(fpNumBlockAcess, "%d\n",numBlockAcess);
+		fprintf(fpNumQueries, "%d\n",countOfQury);
+		fclose(fpNumQueries);
+		fclose(fpNumBlockAcess);
+		fclose(fp);
+		countOfQury = countOfQury+2;
+		t = clock() - t;
+		time_taken = ((double)t)/CLOCKS_PER_SEC;
+		fpExeTime = fopen("exeTime","a");
+		fprintf(fpExeTime, "%f\n",time_taken);
+		fclose(fpExeTime);
+	}
+	if ((error=PF_CloseFile(fd1))!= PFE_OK){
+		PF_PrintError("close file1\n");
+		exit(1);
+	}
+
+	if ((error=PF_CloseFile(fd2))!= PFE_OK){
+		PF_PrintError("close file2\n");
+		exit(1);
+	}
+
+
+}
+void accessDataWithoutindex(char* fname2){
+	int *buf;
+	FILE* fp,*fpNumBlockAcess,*fpExeTime;
+	struct QueryParam queryParamToSearch,queryParamFromData;
+	int pagenum,numBlockAcess;
+	int fd2,error;
+	char input[100],dataRead[100],dataInput[100];
+	int countOfQury = 2,randomNumber,indexToFile = 0,queryProcessed = 0;
+	clock_t t;
+	double time_taken;
+
+	if ((fd2=PF_OpenFile(fname2))<0){
+		PF_PrintError("open file2");
+		exit(1);
+	}
+	fpNumBlockAcess = fopen("numBlockAccessWithoutIndex","w");
+	fpExeTime = fopen("exeTimeWithoutIndex","w");
+	fclose(fpNumBlockAcess);
+	fclose(fpExeTime);
+	//fp = fopen("query","r");
+	countOfQury =2;
+	while(countOfQury<=10000){
+		t = clock();
+		fp = fopen("query","r");
+		fpNumBlockAcess = fopen("numBlockAccessWithoutIndex","a");
+		//fpNumQueries = fopen("numQuries","a");
+		randomNumber = getRandomNum();
+
+		//fseek (fp, randomNumber*100, SEEK_SET);
+		numBlockAcess = 0;
+		queryProcessed = 0;
+		indexToFile = 0;
+		while(1){
+			if(!fgets(input,100,fp)){
+
+				if(queryProcessed<countOfQury){
+					fclose(fp);
+					fp = fopen("query","r");
+					memset(&input,0,sizeof(input));
+					memset(&dataInput,0,sizeof(dataInput));
+					continue;
+				}
+				else break;
+			}
+			else{
+				if(indexToFile<randomNumber){
+					indexToFile++;
+					continue;
+				}
+			}
+			if(queryProcessed>=countOfQury)
+				break;
+			queryProcessed++;
+			//printf("%s",input);
+			strcpy(dataInput,input);
+			queryParamToSearch = extractParamFromInput(dataInput);
+
+			pagenum = -1;
+			while ((error=PF_GetNextPage(fd2,&pagenum,&buf))== PFE_OK){
+				//printf("got page %d, %s\n",pagenum,buf);
+				numBlockAcess++;
+				strcpy(dataRead,buf);
+				//printf("data : %s\n",dataRead);
+				queryParamFromData = extractParamFromInput(dataRead);
+				if(areEqual(queryParamToSearch,queryParamFromData)){
+					printf("data found at page number without index : %d\n",pagenum);
+				}
+				if ((error=PF_UnfixPage(fd2,pagenum,FALSE))!= PFE_OK){
+					PF_PrintError("unfix");
+					exit(1);
+				}
+			}
+			if (error != PFE_EOF){
+				PF_PrintError("not eof\n");
+				exit(1);
+			}
+		}
+		fprintf(fpNumBlockAcess, "%d\n",numBlockAcess);
+		///fprintf(fpNumQueries, "%d\n",countOfQury);
+		//fclose(fpNumQueries);
+		fclose(fpNumBlockAcess);
+		fclose(fp);
+		countOfQury = countOfQury+2;
+		t = clock() - t;
+		time_taken = ((double)t)/CLOCKS_PER_SEC;
+		fpExeTime = fopen("exeTimeWithoutIndex","a");
+		fprintf(fpExeTime, "%f\n",time_taken);
+		fclose(fpExeTime);
+	}
+	if ((error=PF_CloseFile(fd2))!= PFE_OK){
+		PF_PrintError("close file2\n");
+		exit(1);
+	}
+}
 int main(){
 	int error;
+	int hashArray[10000];
 	/* create a few files */
-
+	remove(FILE1);
+	remove(FILE2);
+	int indexArray[4096];
+	memset(&indexArray, -1, sizeof indexArray);
+	memset(&hashArray,-1,sizeof(hashArray));
 	if ((error=PF_CreateFile(FILE1))!= PFE_OK){
 		PF_PrintError("file1");
 		exit(1);
 	}
 	printf("file1 created\n");
 
-//	if ((error=PF_CreateFile(FILE2))!= PFE_OK){
-//		PF_PrintError("file2");
-//		exit(1);
-//	}
-//	printf("file2 created\n");
-	/* write to file1 */
-//	writefile(FILE1);
+	if ((error=PF_CreateFile(FILE2))!= PFE_OK){
+		PF_PrintError("file2");
+	exit(1);
+	}
+	printf("file2 created\n");
+	sequentialWrite(FILE1,FILE2,hashArray);
 
-	sequentialWrite(FILE1);
-	readfile(FILE1);
+	readfileData(FILE1);
+	readfileData(FILE2);
+	accessDataUsingindex(FILE1,FILE2,hashArray);
+	accessDataWithoutindex(FILE2);
 
 return 0;
 }
