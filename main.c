@@ -15,310 +15,23 @@
 #define MID_LIMIT(salary) (salary>=500&&salary<1000)?1:0
 #define HIGH_LIMIT(salary) salary>=1000?1:0
 #define TESTING_DATA_FILE_NAME "testingData"
+#define RELATION_NAME "Jan2015Transaction"
+#define MAX_SELECT_OPTION 4
+#define MAX_COMPARISION_OPTION 3
+#define IS_VALID_GENDER(gender) (gender==1||gender==2)?true:false
+#define IS_VALID_MARITAL_STATUS(status) (status==1||status==2)?true:false
+#define SALARY_TYPE(amount) amount<500?"SALARY='Low'":amount<1000?"SALARY='Medium'":"SALARY='High'"
+#define GET_BIT_MAP_FOR_SALARY(amount) amount<500?16:amount<1000?8:4
+#define MAX_PAGE_SIZE 4090
 
+static int totalNoOfData=0;
 
-//
-//main2()
-//{
-//int error;
-//int i;
-//int pagenum,*buf;
-//int *buf1,*buf2;
-//int fd1,fd2;
-//
-//
-//
-//	/* create a few files */
-//	if ((error=PF_CreateFile(FILE1))!= PFE_OK){
-//		PF_PrintError("file1");
-//		exit(1);
-//	}
-//	printf("file1 created\n");
-//
-//	if ((error=PF_CreateFile(FILE2))!= PFE_OK){
-//		PF_PrintError("file2");
-//		exit(1);
-//	}
-//	printf("file2 created\n");
-//
-//	/* write to file1 */
-//	writefile(FILE1);
-//
-//	/* print it out */
-//	readfile(FILE1);
-//
-//	/* write to file2 */
-//	writefile(FILE2);
-//
-//	/* print it out */
-//	readfile(FILE2);
-//
-//
-//	/* open both files */
-//	if ((fd1=PF_OpenFile(FILE1))<0){
-//		PF_PrintError("open file1\n");
-//		exit(1);
-//	}
-//	printf("opened file1\n");
-//
-//	if ((fd2=PF_OpenFile(FILE2))<0 ){
-//		PF_PrintError("open file2\n");
-//		exit(1);
-//	}
-//	printf("opened file2\n");
-//
-//	/* get rid of records  1, 3, 5, etc from file 1,
-//	and 0,2,4,6 from file2 */
-//	for (i=0; i < PF_MAX_BUFS; i++){
-//		if (i & 1){
-//			if ((error=PF_DisposePage(fd1,i))!= PFE_OK){
-//				PF_PrintError("dispose\n");
-//				exit(1);
-//			}
-//			printf("disposed %d of file1\n",i);
-//		}
-//		else {
-//			if ((error=PF_DisposePage(fd2,i))!= PFE_OK){
-//				PF_PrintError("dispose\n");
-//				exit(1);
-//			}
-//			printf("disposed %d of file2\n",i);
-//		}
-//	}
-//
-//	if ((error=PF_CloseFile(fd1))!= PFE_OK){
-//		PF_PrintError("close fd1");
-//		exit(1);
-//	}
-//	printf("closed file1\n");
-//
-//	if ((error=PF_CloseFile(fd2))!= PFE_OK){
-//		PF_PrintError("close fd2");
-//		exit(1);
-//	}
-//	printf("closed file2\n");
-//	/* print the files */
-//	readfile(FILE1);
-//	readfile(FILE2);
-//
-//
-//	/* destroy the two files */
-//	if ((error=PF_DestroyFile(FILE1))!= PFE_OK){
-//		PF_PrintError("destroy file1");
-//		exit(1);
-//	}
-//	if ((error=PF_DestroyFile(FILE2))!= PFE_OK){
-//		PF_PrintError("destroy file2");
-//		exit(1);
-//	}
-//
-//	/* create them again */
-//	if ((fd1=PF_CreateFile(FILE1))< 0){
-//		PF_PrintError("create file1");
-//		exit(1);
-//	}
-//	printf("file1 created\n");
-//
-//	if ((fd2=PF_CreateFile(FILE2))< 0){
-//		PF_PrintError("create file2");
-//		exit(1);
-//	}
-//	printf("file2 created\n");
-//
-//	/* put stuff into the two files */
-//	writefile(FILE1);
-//	writefile(FILE2);
-//
-//	/* Open the files, and see how the buffer manager
-//	handles more insertions, and deletions */
-//	/* open both files */
-//	if ((fd1=PF_OpenFile(FILE1))<0){
-//		PF_PrintError("open file1\n");
-//		exit(1);
-//	}
-//	printf("opened file1\n");
-//
-//	if ((fd2=PF_OpenFile(FILE2))<0 ){
-//		PF_PrintError("open file2\n");
-//		exit(1);
-//	}
-//	printf("opened file2\n");
-//
-//	for (i=PF_MAX_BUFS; i < PF_MAX_BUFS*2 ; i++){
-//		if ((error=PF_AllocPage(fd2,&pagenum,&buf))!= PFE_OK){
-//			PF_PrintError("first buffer\n");
-//			exit(1);
-//		}
-//		*((int *)buf) = i;
-//		if ((error=PF_UnfixPage(fd2,pagenum,TRUE))!= PFE_OK){
-//			PF_PrintError("unfix file1");
-//			exit(1);
-//		}
-//		printf("alloc %d file1\n",i,pagenum);
-//
-//		if ((error=PF_AllocPage(fd1,&pagenum,&buf))!= PFE_OK){
-//			PF_PrintError("first buffer\n");
-//			exit(1);
-//		}
-//		*((int *)buf) = i;
-//		if ((error=PF_UnfixPage(fd1,pagenum,TRUE))!= PFE_OK){
-//			PF_PrintError("dispose file1");
-//			exit(1);
-//		}
-//		printf("alloc %d file2\n",i,pagenum);
-//	}
-//
-//	for (i= PF_MAX_BUFS; i < PF_MAX_BUFS*2; i++){
-//		if (i & 1){
-//			if ((error=PF_DisposePage(fd1,i))!= PFE_OK){
-//				PF_PrintError("dispose fd1");
-//				exit(1);
-//			}
-//			printf("dispose fd1 page %d\n",i);
-//		}
-//		else {
-//			if ((error=PF_DisposePage(fd2,i))!= PFE_OK){
-//				PF_PrintError("dispose fd2");
-//				exit(1);
-//			}
-//			printf("dispose fd2 page %d\n",i);
-//		}
-//	}
-//
-//	printf("getting file2\n");
-//	for (i=PF_MAX_BUFS; i < PF_MAX_BUFS*2; i++){
-//		if (i & 1){
-//			if ((error=PF_GetThisPage(fd2,i,&buf))!=PFE_OK){
-//				PF_PrintError("get this on fd2");
-//				exit(1);
-//			}
-//			printf("%d %d\n",i,*buf);
-//			if ((error=PF_UnfixPage(fd2,i,FALSE))!= PFE_OK){
-//				PF_PrintError("get this on fd2");
-//					exit(1);
-//			}
-//		}
-//	}
-//
-//	printf("getting file1\n");
-//	for (i=PF_MAX_BUFS; i < PF_MAX_BUFS*2; i++){
-//		if (!(i & 1)){
-//			if ((error=PF_GetThisPage(fd1,i,&buf))!=PFE_OK){
-//				PF_PrintError("get this on fd2");
-//				exit(1);
-//			}
-//			printf("%d %d\n",i,*buf);
-//			if ((error=PF_UnfixPage(fd1,i,FALSE))!= PFE_OK){
-//				PF_PrintError("get this on fd2");
-//					exit(1);
-//			}
-//		}
-//	}
-//
-//	/* print the files */
-//	printfile(fd2);
-//
-//	printfile(fd1);
-//
-//	/*put some more stuff into file1 */
-//	printf("putting stuff into holes in fd1\n");
-//	for (i=0; i < (PF_MAX_BUFS/2 -1); i++){
-//		if (PF_AllocPage(fd1,&pagenum,&buf)!= PFE_OK){
-//			PF_PrintError("PF_AllocPage");
-//			exit(1);
-//		}
-//		*buf =pagenum;
-//		if (PF_UnfixPage(fd1,pagenum,TRUE)!= PFE_OK){
-//			PF_PrintError("PF_UnfixPage");
-//			exit(1);
-//		}
-//	}
-//
-//	printf("printing fd1");
-//	printfile(fd1);
-//
-//	PF_CloseFile(fd1);
-//	printf("closed file1\n");
-//
-//	PF_CloseFile(fd2);
-//	printf("closed file2\n");
-//
-//	/* open file1 twice */
-//	if ((fd1=PF_OpenFile(FILE1))<0){
-//		PF_PrintError("open file1");
-//		exit(1);
-//	}
-//	printf("opened file1\n");
-//
-//	/* try to destroy it while it's still open*/
-//	error=PF_DestroyFile(FILE1);
-//	PF_PrintError("destroy file1, should not succeed");
-//
-//
-//	/* get rid of some invalid page */
-//	error=PF_DisposePage(fd1,100);
-//	PF_PrintError("dispose page 100, should fail");
-//
-//
-//	/* get a valid page, and try to dispose it without unfixing.*/
-//	if ((error=PF_GetThisPage(fd1,1,&buf))!=PFE_OK){
-//		PF_PrintError("get this on fd2");
-//		exit(1);
-//	}
-//	printf("got page%d\n",*buf);
-//	error=PF_DisposePage(fd1,1);
-//	PF_PrintError("dispose page1, should fail");
-//
-//	/* Now unfix it */
-//	if ((error=PF_UnfixPage(fd1,1,FALSE))!= PFE_OK){
-//		PF_PrintError("get this on fd2");
-//			exit(1);
-//	}
-//
-//	error=PF_UnfixPage(fd1,1,FALSE);
-//	PF_PrintError("unfix fd1 again, should fail");
-//
-//	if ((fd2=PF_OpenFile(FILE1))<0 ){
-//		PF_PrintError("open file1 again");
-//		exit(1);
-//	}
-//	printf("opened file1 again\n");
-//
-//	printfile(fd1);
-//
-//	printfile(fd2);
-//
-//	if (PF_CloseFile(fd1) != PFE_OK){
-//		PF_PrintError("close fd1");
-//		exit(1);
-//	}
-//
-//	if (PF_CloseFile(fd2)!= PFE_OK){
-//		PF_PrintError("close fd2");
-//		exit(1);
-//	}
-//
-//	/* print the buffer */
-//	printf("buffer:\n");
-//	PFbufPrint();
-//
-//	/* print the hash table */
-//	printf("hash table:\n");
-//	PFhashPrint();
-//}
-/**
- * write data in file having file descriptor as fd.
- * data is written sequentially so we allocate the page write data and unfix data page as we do not require it again
- *
- */
-void sequentialWriteIndex2(int fd,int data,int* hashArray,int *currentPageNo){
+void sequentialWriteIndex2(int fd,int data,int *currentPageNo){
 
 	int *buf;
 	int error,pagenum;
-	char updateIndexArray[100];
-	char dataInput[100];
 
-	char dataToWrite[100],pageNumberStr[20];
+	char dataToWrite[100];
 	if(*currentPageNo<0){
 		if ((error=PF_AllocPage(fd,&pagenum,(char **)&buf))!= PFE_OK){
 			PF_PrintError("first buffer\n");
@@ -338,7 +51,7 @@ void sequentialWriteIndex2(int fd,int data,int* hashArray,int *currentPageNo){
 		if((error=PF_GetNextPage(fd,&pagenum,&buf))== PFE_OK){
 			*currentPageNo = pagenum;
 			int sizeOfCurrentPage=strlen(buf);
-			if(sizeOfCurrentPage<10){
+			if(sizeOfCurrentPage<MAX_PAGE_SIZE){
 				sprintf(dataToWrite,",%d",data);
 				strcat(buf,dataToWrite);
 				//unfix as it is sequential write
@@ -497,6 +210,56 @@ int extractDataFromInputString(char * input){
 		//If it reaches here means data format is correct
 	result=data;
 	return result;
+
+}
+bool sequentialWrite2(char *fname1,char * fname2){
+	bool writeStatus=false;
+	int fd1,fd2,error,pageNumber,currentPageNo=-1;
+	char input[100],dataInput[100];
+
+	FILE* fp;
+	int dataToBeStored=0;
+
+	//extractDataFromInputString(input1);
+	if ((fd1=PF_OpenFile(fname1))<0){
+		PF_PrintError("open file1");
+		exit(1);
+	}
+
+	if ((fd2=PF_OpenFile(fname2))<0){
+		PF_PrintError("open file2");
+		exit(1);
+	}
+
+	fp = fopen(TESTING_DATA_FILE_NAME,"r");
+	if(!fp){
+		printf("file '%s' not found .",TESTING_DATA_FILE_NAME);
+		exit(1);
+	}
+	while(fgets(input,100,fp)){
+//		printf("%s",input);
+		strcpy(dataInput,input);
+		dataToBeStored=extractDataFromInputString(input);
+//		printf("%s",dataInput);
+		if(dataToBeStored>=0){
+			sequentialWriteInternalData(fd2,dataInput);
+			sequentialWriteIndex2(fd1,dataToBeStored,&currentPageNo);
+
+		}
+		memset(&input,0,sizeof(input));
+	}
+	fclose(fp);
+
+	if ((error=PF_CloseFile(fd1))!= PFE_OK){
+		PF_PrintError("close file1\n");
+		exit(1);
+	}
+
+	if ((error=PF_CloseFile(fd2))!= PFE_OK){
+		PF_PrintError("close file2\n");
+		exit(1);
+	}
+	return writeStatus;
 }
 bool sequentialWrite(char *fname1,char * fname2,int* hashArray){
 	bool writeStatus=false;
@@ -523,17 +286,15 @@ bool sequentialWrite(char *fname1,char * fname2,int* hashArray){
 		exit(1);
 	}
 	while(fgets(input,100,fp)){
-		//TODO remove comment
 //		printf("%s",input);
 		strcpy(dataInput,input);
 		dataToBeStored=extractDataFromInputString(input);
 //		printf("%s",dataInput);
 		if(dataToBeStored>=0){
-			if(dataToBeStored==74){
-				printf("wait");
-			}
 			pageNumber = sequentialWriteInternalData(fd2,dataInput);
-			sequentialWriteIndex2(fd1,dataToBeStored,hashArray,&currentPageNo);
+			//totalNoOfData is a global vriable
+			totalNoOfData++;
+			sequentialWriteIndex2(fd1,dataToBeStored,&currentPageNo);
 
 		}
 		memset(&input,0,sizeof(input));
@@ -756,18 +517,7 @@ int getRandomNum()
     printf("random number : %d\n", randomnumber);
     return randomnumber;
 }
-void accessDataUsingindex2(char* fname1,char*fname2,int* hashArray){
-	int fd1,fd2,error;
-	if ((fd1=PF_OpenFile(fname1))<0){
-		PF_PrintError("open file1");
-		exit(1);
-	}
-	if ((fd2=PF_OpenFile(fname2))<0){
-		PF_PrintError("open file2");
-		exit(1);
-	}
 
-}
 void accessDataUsingindex(char* fname1,char*fname2,int* hashArray){
 	int *buf,*dataBuf;
 	FILE* fp,*fpNumQueries,*fpNumBlockAcess,*fpExeTime;
@@ -999,33 +749,37 @@ int countBitMaps(int fd,int queryBitMap){
 	int pagenum;
 	int storedBitMap;
 	int counter=0;
+	int numberOfPageRead=0;
 	char* ptrToData = NULL,*saved;
 	char inputReadFromindex[4096];
+	int noOfSeek=0;
 
 //		printf("reading file\n");
 		pagenum = -1;
 		while ((error=PF_GetNextPage(fd,&pagenum,&buf))== PFE_OK){
 
 			strcpy(inputReadFromindex,buf);
-			ptrToData = strtok_r(inputReadFromindex,",",&saved);
+			ptrToData = strtok_r(inputReadFromindex,",",&saved);noOfSeek++;
 			while(ptrToData!=NULL){
 				storedBitMap = atoi(ptrToData);
 				if(storedBitMap==queryBitMap){
 					counter++;
 				}
-				ptrToData = strtok_r(NULL,",",&saved);
+				ptrToData = strtok_r(NULL,",",&saved);noOfSeek++;
 			}
 //			printf("got page %d, %s\n",pagenum,buf);
 			if ((error=PF_UnfixPage(fd,pagenum,FALSE))!= PFE_OK){
 				PF_PrintError("unfix");
 				exit(1);
 			}
+			numberOfPageRead++;
 		}
 		if (error != PFE_EOF){
 			PF_PrintError("not eof\n");
 			exit(1);
 		}
-//		printf("eof reached\n");
+		printf("Number Of Page Read :%d And Number Of Seek :%d\n",numberOfPageRead,noOfSeek);
+
 return counter;
 }
 int getNumberOfBitMapsPresentForGivenValue(char *bitMapFile,int bitMapValue)
@@ -1048,41 +802,284 @@ int fd;
 	}
 	return 0;
 }
+void getSelectOptions(int *returnNo,int selectOption[]){
+	int noOfSelectOption;
+		bool validityOfUserInput=false;
 
+	printf("Enter Number Of SELECT options you Need : ");
+	scanf("%d",&noOfSelectOption);
+	if(noOfSelectOption>0 && noOfSelectOption<=MAX_SELECT_OPTION){
+		validityOfUserInput=true;
+		noOfSelectOption=noOfSelectOption-1;//index start from zero
+	}
+	while(!validityOfUserInput){
+		printf("Number Of SELECT Option Should Be Between 1 And %d.Please Retry : ",MAX_SELECT_OPTION);
+		scanf("%d",&noOfSelectOption);
+		if(noOfSelectOption>0 && noOfSelectOption<=MAX_SELECT_OPTION){
+			validityOfUserInput=true;
+			noOfSelectOption=noOfSelectOption-1;//index start from zero
+		}
+	}
+	printf("Option For SELECT Are:\n");
+	printf("1.ATM Id\n2.Customer Id\n3.Gender\n4.Salary\n");
+	for(int i=0;i<=noOfSelectOption;i++){
+		validityOfUserInput=false;
+		printf("Enter Value For Option%d : ",i+1);
+		scanf("%d",&selectOption[i]);
+		if(selectOption[i]>0 && selectOption[i]<=MAX_SELECT_OPTION){
+			validityOfUserInput=true;
+		}
+		else{
+			while(!validityOfUserInput){
+				printf("SELECT Option Is Incorrect Please Retry : ");
+				scanf("%d",&selectOption[i]);
+				if(selectOption[i]>0 && selectOption[i]<=MAX_SELECT_OPTION){
+					validityOfUserInput=true;
+				}
+			}
+		}
+	}
+	*returnNo=noOfSelectOption;
+//
+//	for(int i=0;i<noOfSelectOption;i++){
+//		printf("Option%d is %d\n",i+1,selectOption[i]);
+//	}
+}
+bool geValueOnBasisOfComparisionType(int type,int comparisionValue[]){
+	bool result=false;
+	bool validityOfUserInput=false;
+	if(comparisionValue[type]!=-1){
+		printf("Two Comparision Of Same Type Is Not Allowed\n ");
+		return false;
+	}
+	switch(type){
+
+	case 0:
+		printf("Enter Gender For Comparison (1 For Male  Or 2 For Female) : ");
+		scanf("%d",&comparisionValue[type]);
+		if(IS_VALID_GENDER(comparisionValue[type])){
+			validityOfUserInput=true;
+		}
+		else{
+			while(!validityOfUserInput){
+				printf("Invalid Gender Please Retry : ");
+				scanf("%d",&comparisionValue[type]);
+				if(IS_VALID_GENDER(comparisionValue[type])){
+					validityOfUserInput=true;
+				}
+			}
+		}
+		result=true;
+		break;
+	case 1:
+		printf("Enter Amount For Comparison  : ");
+		scanf("%d",&comparisionValue[type]);
+		if(comparisionValue[type]>0){
+			validityOfUserInput=true;
+		}
+		else{
+			while(!validityOfUserInput){
+				printf("Invalid Amount Please Retry : ");
+				scanf("%d",&comparisionValue[type]);
+				if(comparisionValue[type]>0){
+					validityOfUserInput=true;
+				}
+			}
+		}
+		result=true;
+		break;
+	case 2:
+		printf("Enter Marital Status For Comparsion (1 For Single  Or 2 For Married) : ");
+		scanf("%d",&comparisionValue[type]);
+		if(IS_VALID_MARITAL_STATUS(comparisionValue[type])){
+			validityOfUserInput=true;
+		}
+		else{
+			while(!validityOfUserInput){
+				printf("Invalid Gender Please Retry : ");
+				scanf("%d",&comparisionValue[type]);
+				if(IS_VALID_MARITAL_STATUS(comparisionValue[type])){
+					validityOfUserInput=true;
+				}
+			}
+		}
+		result=true;
+		break;
+
+	default:
+		return false;
+	}
+	return result;
+}
+char * getOptionFromInt(int optionNumber){
+	switch(optionNumber){
+		case 1:
+			return "Count(*)";
+
+		case 2:
+			return "Customer Id";
+
+		case 3:
+			return "Gender";
+		case 4:
+			return "Salary";
+
+	}
+	return "";
+}
+char * getComparisonFromInt(int comType,int comValue){
+	switch(comType){
+	case 0://for Gender
+		return comValue==1?"GENDER='Male'":"GENDER='Female'";
+
+	case 1://For Salary
+		return SALARY_TYPE(comValue);
+
+	case 2://For status
+		return comValue==1?"MARITAL_STATUS='Single'":"MARITAL_STATUS='Married'";
+
+
+	}
+	return "";
+}
+void getComparisionTypeAndValue(int *returnComNo,int comparisionType[],int comparisionValue[]){
+	bool validityOfUserInput=false;
+	int noOfComparison=3;//Defaulting  for simplicity
+	validityOfUserInput=false;
+//	printf("Enter Number Of Comparison  You Need (Max Allowed %d) : ",MAX_COMPARISION_OPTION);
+//	scanf("%d",&noOfComparison);
+//	if(noOfComparison>0 && noOfComparison<=MAX_COMPARISION_OPTION){
+//			validityOfUserInput=true;
+//		}
+//		while(!validityOfUserInput){
+//			printf("Number Of Comparison Should Be Between 1 And %d.Please Retry : ",MAX_COMPARISION_OPTION);
+//			scanf("%d",&noOfComparison);
+//			if(noOfComparison>0 && noOfComparison<=MAX_COMPARISION_OPTION){
+//				validityOfUserInput=true;
+//			}
+//		}
+//	printf("Valid  Comparison Types Allowed :\n 1. For Gender \n 2. For Amount \n 3. For Marital Status \n ");
+	for(int comNo=0;comNo<noOfComparison;comNo++){
+//		printf("Enter Type For Comparison %d : ",comNo+1);
+//		scanf("%d",&comparisionType[comNo]);
+		comparisionType[comNo]=comNo;
+		validityOfUserInput=false;
+		while(!validityOfUserInput){
+			if(geValueOnBasisOfComparisionType(comparisionType[comNo],comparisionValue)){
+				validityOfUserInput=true;
+			}else{
+				printf("Enter Type For Comparison %d : ",comNo+1);
+				scanf("%d",&comparisionType[comNo]);
+			}
+
+		}
+	}
+	*returnComNo=noOfComparison;
+//	for(int i=0;i<noOfComparison;i++){
+//		printf("ComparisonType%d is %d \n",i+1,comparisionType[i]);
+//		printf("ComparisonValue%d is %d \n",i+1,comparisionValue[i]);
+//	}
+
+}
+void generateQuery(int noOfSelectOption,int noOfComparison,int selectOption[],int comparisionType[],int comparisionValue[]){
+	if(noOfSelectOption>-1){
+		printf("SELECT ");
+		for(int optionNo=0;optionNo<=noOfSelectOption;optionNo++){
+			if(optionNo==0){
+				printf("%s",getOptionFromInt(selectOption[optionNo]));
+			}else{
+				printf(",%s",getOptionFromInt(selectOption[optionNo]));
+			}
+		}
+	}
+	printf(" FROM %s\n",RELATION_NAME);
+	printf(" WHERE ");
+	if(noOfComparison>0){
+		for(int compNo=0;compNo<noOfComparison;compNo++){
+			if(compNo==0){
+				printf("%s",getComparisonFromInt(comparisionType[compNo],comparisionValue[compNo]));
+			}else{
+				printf(" AND %s",getComparisonFromInt(comparisionType[compNo],comparisionValue[compNo]));
+			}
+		}
+	}
+	printf("\n");
+
+}
+int generateBitMapForQuery(int comparisionValue[]){
+
+	int bitMap=0;
+	if(comparisionValue[0]==1){
+		bitMap+=64;//for male
+	}else if(comparisionValue[0]==2){
+		bitMap+=32;//for female
+	}
+
+	bitMap+=GET_BIT_MAP_FOR_SALARY(comparisionValue[1]);//comparisionValue[1] is amount
+	if(comparisionValue[2]==1){
+		bitMap+=2;//for single
+	}else if(comparisionValue[2]==2){
+		bitMap+=1;//for married
+	}
+	return bitMap;
+}
+void queryDatabase(char * bitMapFile){
+	int noOfSelectOption=-1;
+		int noOfComparison=-1;
+		int selectOption[MAX_SELECT_OPTION],comparisionType[MAX_COMPARISION_OPTION],comparisionValue[MAX_COMPARISION_OPTION];
+		for(int i=0;i<MAX_COMPARISION_OPTION;i++){
+			comparisionValue[i]=-1;
+		}
+		printf("Query Format:\n");
+		printf("SELECT count(*) From %s WHERE GENDER=? AND SALARY=? AND MARITAL_STATUS=?\n",RELATION_NAME);
+
+	//	getSelectOptions(&noOfSelectOption,selectOption);
+		noOfSelectOption=0;
+		selectOption[noOfSelectOption]=1;
+		getComparisionTypeAndValue(&noOfComparison,comparisionType,comparisionValue);
+		generateQuery(noOfSelectOption,noOfComparison,selectOption,comparisionType,comparisionValue);
+		int bitmap=generateBitMapForQuery(comparisionValue);
+		printf("Output For the Above Query Is : %d\n\n",getNumberOfBitMapsPresentForGivenValue(bitMapFile,bitmap));
+}
 int main(){
 	int error;
 	int hashArray[10000];
 	/* create a few files */
-//	remove(FILE1);
-//	remove(FILE2);
-//	int indexArray[4096];
-//	memset(&indexArray, -1, sizeof indexArray);
-//	memset(&hashArray,-1,sizeof(hashArray));
-//	if ((error=PF_CreateFile(FILE1))!= PFE_OK){
-//		PF_PrintError("file1");
-//		exit(1);
-//	}
-//	printf("file1 created\n");
-
-//	if ((error=PF_CreateFile(FILE2))!= PFE_OK){
-//		PF_PrintError("file2");
-//	exit(1);
-//	}
-//	printf("file2 created\n");
-//	sequentialWrite(FILE1,FILE2,hashArray);
-	int option;
-	while(1){
-		printf("Enter Query bitmap :");
-		scanf("%d",&option);
-		printf("For the Given Query bit map number of record present are : %d\n",getNumberOfBitMapsPresentForGivenValue(FILE1,option));
-
-
+	remove(FILE1);
+	remove(FILE2);
+	int indexArray[4096];
+	memset(&indexArray, -1, sizeof indexArray);
+	memset(&hashArray,-1,sizeof(hashArray));
+	if ((error=PF_CreateFile(FILE1))!= PFE_OK){
+		PF_PrintError("file1");
+		exit(1);
 	}
+	printf("file1 created\n");
 
-//	readfileData(FILE1);
+	if ((error=PF_CreateFile(FILE2))!= PFE_OK){
+		PF_PrintError("file2");
+	exit(1);
+	}
+	printf("file2 created\n");
+	sequentialWrite(FILE1,FILE2,hashArray);
+
+//	while(1){
+//		printf("Enter Query bitmap :");
+//		scanf("%d",&option);
+//		printf("For the Given Query bit map number of record present are : %d\n",getNumberOfBitMapsPresentForGivenValue(FILE1,option));
+//
+//
+//	}
+
+	readfileData(FILE1);
 //	readfileData(FILE2);
 //	accessDataUsingindex(FILE1,FILE2,hashArray);
 //	accessDataWithoutindex(FILE2);
+	printf("Total Number Of Data Present :%d\n",totalNoOfData);
+	while(1){
+		queryDatabase(FILE1);
+	}
+
 
 return 0;
 }
