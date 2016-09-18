@@ -6,6 +6,7 @@
 #include "pftypes.h"
 #include <string.h>
 #include <time.h>
+#include <stdbool.h>
 
 #define FILE1	"file1"
 #define FILE2	"file2"
@@ -13,302 +14,361 @@
 #define LOW_LIMIT(salary) salary<500?1:0
 #define MID_LIMIT(salary) (salary>=500&&salary<1000)?1:0
 #define HIGH_LIMIT(salary) salary>=1000?1:0
+#define TESTING_DATA_FILE_NAME "testingData"
 
 
-
-main2()
-{
-int error;
-int i;
-int pagenum,*buf;
-int *buf1,*buf2;
-int fd1,fd2;
-
-
-
-	/* create a few files */
-	if ((error=PF_CreateFile(FILE1))!= PFE_OK){
-		PF_PrintError("file1");
-		exit(1);
-	}
-	printf("file1 created\n");
-
-	if ((error=PF_CreateFile(FILE2))!= PFE_OK){
-		PF_PrintError("file2");
-		exit(1);
-	}
-	printf("file2 created\n");
-
-	/* write to file1 */
-	writefile(FILE1);
-
-	/* print it out */
-	readfile(FILE1);
-
-	/* write to file2 */
-	writefile(FILE2);
-
-	/* print it out */
-	readfile(FILE2);
-
-
-	/* open both files */
-	if ((fd1=PF_OpenFile(FILE1))<0){
-		PF_PrintError("open file1\n");
-		exit(1);
-	}
-	printf("opened file1\n");
-
-	if ((fd2=PF_OpenFile(FILE2))<0 ){
-		PF_PrintError("open file2\n");
-		exit(1);
-	}
-	printf("opened file2\n");
-
-	/* get rid of records  1, 3, 5, etc from file 1,
-	and 0,2,4,6 from file2 */
-	for (i=0; i < PF_MAX_BUFS; i++){
-		if (i & 1){
-			if ((error=PF_DisposePage(fd1,i))!= PFE_OK){
-				PF_PrintError("dispose\n");
-				exit(1);
-			}
-			printf("disposed %d of file1\n",i);
-		}
-		else {
-			if ((error=PF_DisposePage(fd2,i))!= PFE_OK){
-				PF_PrintError("dispose\n");
-				exit(1);
-			}
-			printf("disposed %d of file2\n",i);
-		}
-	}
-
-	if ((error=PF_CloseFile(fd1))!= PFE_OK){
-		PF_PrintError("close fd1");
-		exit(1);
-	}
-	printf("closed file1\n");
-
-	if ((error=PF_CloseFile(fd2))!= PFE_OK){
-		PF_PrintError("close fd2");
-		exit(1);
-	}
-	printf("closed file2\n");
-	/* print the files */
-	readfile(FILE1);
-	readfile(FILE2);
-
-
-	/* destroy the two files */
-	if ((error=PF_DestroyFile(FILE1))!= PFE_OK){
-		PF_PrintError("destroy file1");
-		exit(1);
-	}
-	if ((error=PF_DestroyFile(FILE2))!= PFE_OK){
-		PF_PrintError("destroy file2");
-		exit(1);
-	}
-
-	/* create them again */
-	if ((fd1=PF_CreateFile(FILE1))< 0){
-		PF_PrintError("create file1");
-		exit(1);
-	}
-	printf("file1 created\n");
-
-	if ((fd2=PF_CreateFile(FILE2))< 0){
-		PF_PrintError("create file2");
-		exit(1);
-	}
-	printf("file2 created\n");
-
-	/* put stuff into the two files */
-	writefile(FILE1);
-	writefile(FILE2);
-
-	/* Open the files, and see how the buffer manager
-	handles more insertions, and deletions */
-	/* open both files */
-	if ((fd1=PF_OpenFile(FILE1))<0){
-		PF_PrintError("open file1\n");
-		exit(1);
-	}
-	printf("opened file1\n");
-
-	if ((fd2=PF_OpenFile(FILE2))<0 ){
-		PF_PrintError("open file2\n");
-		exit(1);
-	}
-	printf("opened file2\n");
-
-	for (i=PF_MAX_BUFS; i < PF_MAX_BUFS*2 ; i++){
-		if ((error=PF_AllocPage(fd2,&pagenum,&buf))!= PFE_OK){
-			PF_PrintError("first buffer\n");
-			exit(1);
-		}
-		*((int *)buf) = i;
-		if ((error=PF_UnfixPage(fd2,pagenum,TRUE))!= PFE_OK){
-			PF_PrintError("unfix file1");
-			exit(1);
-		}
-		printf("alloc %d file1\n",i,pagenum);
-
-		if ((error=PF_AllocPage(fd1,&pagenum,&buf))!= PFE_OK){
-			PF_PrintError("first buffer\n");
-			exit(1);
-		}
-		*((int *)buf) = i;
-		if ((error=PF_UnfixPage(fd1,pagenum,TRUE))!= PFE_OK){
-			PF_PrintError("dispose file1");
-			exit(1);
-		}
-		printf("alloc %d file2\n",i,pagenum);
-	}
-
-	for (i= PF_MAX_BUFS; i < PF_MAX_BUFS*2; i++){
-		if (i & 1){
-			if ((error=PF_DisposePage(fd1,i))!= PFE_OK){
-				PF_PrintError("dispose fd1");
-				exit(1);
-			}
-			printf("dispose fd1 page %d\n",i);
-		}
-		else {
-			if ((error=PF_DisposePage(fd2,i))!= PFE_OK){
-				PF_PrintError("dispose fd2");
-				exit(1);
-			}
-			printf("dispose fd2 page %d\n",i);
-		}
-	}
-
-	printf("getting file2\n");
-	for (i=PF_MAX_BUFS; i < PF_MAX_BUFS*2; i++){
-		if (i & 1){
-			if ((error=PF_GetThisPage(fd2,i,&buf))!=PFE_OK){
-				PF_PrintError("get this on fd2");
-				exit(1);
-			}
-			printf("%d %d\n",i,*buf);
-			if ((error=PF_UnfixPage(fd2,i,FALSE))!= PFE_OK){
-				PF_PrintError("get this on fd2");
-					exit(1);
-			}
-		}
-	}
-
-	printf("getting file1\n");
-	for (i=PF_MAX_BUFS; i < PF_MAX_BUFS*2; i++){
-		if (!(i & 1)){
-			if ((error=PF_GetThisPage(fd1,i,&buf))!=PFE_OK){
-				PF_PrintError("get this on fd2");
-				exit(1);
-			}
-			printf("%d %d\n",i,*buf);
-			if ((error=PF_UnfixPage(fd1,i,FALSE))!= PFE_OK){
-				PF_PrintError("get this on fd2");
-					exit(1);
-			}
-		}
-	}
-
-	/* print the files */
-	printfile(fd2);
-
-	printfile(fd1);
-
-	/*put some more stuff into file1 */
-	printf("putting stuff into holes in fd1\n");
-	for (i=0; i < (PF_MAX_BUFS/2 -1); i++){
-		if (PF_AllocPage(fd1,&pagenum,&buf)!= PFE_OK){
-			PF_PrintError("PF_AllocPage");
-			exit(1);
-		}
-		*buf =pagenum;
-		if (PF_UnfixPage(fd1,pagenum,TRUE)!= PFE_OK){
-			PF_PrintError("PF_UnfixPage");
-			exit(1);
-		}
-	}
-
-	printf("printing fd1");
-	printfile(fd1);
-
-	PF_CloseFile(fd1);
-	printf("closed file1\n");
-
-	PF_CloseFile(fd2);
-	printf("closed file2\n");
-
-	/* open file1 twice */
-	if ((fd1=PF_OpenFile(FILE1))<0){
-		PF_PrintError("open file1");
-		exit(1);
-	}
-	printf("opened file1\n");
-
-	/* try to destroy it while it's still open*/
-	error=PF_DestroyFile(FILE1);
-	PF_PrintError("destroy file1, should not succeed");
-
-
-	/* get rid of some invalid page */
-	error=PF_DisposePage(fd1,100);
-	PF_PrintError("dispose page 100, should fail");
-
-
-	/* get a valid page, and try to dispose it without unfixing.*/
-	if ((error=PF_GetThisPage(fd1,1,&buf))!=PFE_OK){
-		PF_PrintError("get this on fd2");
-		exit(1);
-	}
-	printf("got page%d\n",*buf);
-	error=PF_DisposePage(fd1,1);
-	PF_PrintError("dispose page1, should fail");
-
-	/* Now unfix it */
-	if ((error=PF_UnfixPage(fd1,1,FALSE))!= PFE_OK){
-		PF_PrintError("get this on fd2");
-			exit(1);
-	}
-
-	error=PF_UnfixPage(fd1,1,FALSE);
-	PF_PrintError("unfix fd1 again, should fail");
-
-	if ((fd2=PF_OpenFile(FILE1))<0 ){
-		PF_PrintError("open file1 again");
-		exit(1);
-	}
-	printf("opened file1 again\n");
-
-	printfile(fd1);
-
-	printfile(fd2);
-
-	if (PF_CloseFile(fd1) != PFE_OK){
-		PF_PrintError("close fd1");
-		exit(1);
-	}
-
-	if (PF_CloseFile(fd2)!= PFE_OK){
-		PF_PrintError("close fd2");
-		exit(1);
-	}
-
-	/* print the buffer */
-	printf("buffer:\n");
-	PFbufPrint();
-
-	/* print the hash table */
-	printf("hash table:\n");
-	PFhashPrint();
-}
+//
+//main2()
+//{
+//int error;
+//int i;
+//int pagenum,*buf;
+//int *buf1,*buf2;
+//int fd1,fd2;
+//
+//
+//
+//	/* create a few files */
+//	if ((error=PF_CreateFile(FILE1))!= PFE_OK){
+//		PF_PrintError("file1");
+//		exit(1);
+//	}
+//	printf("file1 created\n");
+//
+//	if ((error=PF_CreateFile(FILE2))!= PFE_OK){
+//		PF_PrintError("file2");
+//		exit(1);
+//	}
+//	printf("file2 created\n");
+//
+//	/* write to file1 */
+//	writefile(FILE1);
+//
+//	/* print it out */
+//	readfile(FILE1);
+//
+//	/* write to file2 */
+//	writefile(FILE2);
+//
+//	/* print it out */
+//	readfile(FILE2);
+//
+//
+//	/* open both files */
+//	if ((fd1=PF_OpenFile(FILE1))<0){
+//		PF_PrintError("open file1\n");
+//		exit(1);
+//	}
+//	printf("opened file1\n");
+//
+//	if ((fd2=PF_OpenFile(FILE2))<0 ){
+//		PF_PrintError("open file2\n");
+//		exit(1);
+//	}
+//	printf("opened file2\n");
+//
+//	/* get rid of records  1, 3, 5, etc from file 1,
+//	and 0,2,4,6 from file2 */
+//	for (i=0; i < PF_MAX_BUFS; i++){
+//		if (i & 1){
+//			if ((error=PF_DisposePage(fd1,i))!= PFE_OK){
+//				PF_PrintError("dispose\n");
+//				exit(1);
+//			}
+//			printf("disposed %d of file1\n",i);
+//		}
+//		else {
+//			if ((error=PF_DisposePage(fd2,i))!= PFE_OK){
+//				PF_PrintError("dispose\n");
+//				exit(1);
+//			}
+//			printf("disposed %d of file2\n",i);
+//		}
+//	}
+//
+//	if ((error=PF_CloseFile(fd1))!= PFE_OK){
+//		PF_PrintError("close fd1");
+//		exit(1);
+//	}
+//	printf("closed file1\n");
+//
+//	if ((error=PF_CloseFile(fd2))!= PFE_OK){
+//		PF_PrintError("close fd2");
+//		exit(1);
+//	}
+//	printf("closed file2\n");
+//	/* print the files */
+//	readfile(FILE1);
+//	readfile(FILE2);
+//
+//
+//	/* destroy the two files */
+//	if ((error=PF_DestroyFile(FILE1))!= PFE_OK){
+//		PF_PrintError("destroy file1");
+//		exit(1);
+//	}
+//	if ((error=PF_DestroyFile(FILE2))!= PFE_OK){
+//		PF_PrintError("destroy file2");
+//		exit(1);
+//	}
+//
+//	/* create them again */
+//	if ((fd1=PF_CreateFile(FILE1))< 0){
+//		PF_PrintError("create file1");
+//		exit(1);
+//	}
+//	printf("file1 created\n");
+//
+//	if ((fd2=PF_CreateFile(FILE2))< 0){
+//		PF_PrintError("create file2");
+//		exit(1);
+//	}
+//	printf("file2 created\n");
+//
+//	/* put stuff into the two files */
+//	writefile(FILE1);
+//	writefile(FILE2);
+//
+//	/* Open the files, and see how the buffer manager
+//	handles more insertions, and deletions */
+//	/* open both files */
+//	if ((fd1=PF_OpenFile(FILE1))<0){
+//		PF_PrintError("open file1\n");
+//		exit(1);
+//	}
+//	printf("opened file1\n");
+//
+//	if ((fd2=PF_OpenFile(FILE2))<0 ){
+//		PF_PrintError("open file2\n");
+//		exit(1);
+//	}
+//	printf("opened file2\n");
+//
+//	for (i=PF_MAX_BUFS; i < PF_MAX_BUFS*2 ; i++){
+//		if ((error=PF_AllocPage(fd2,&pagenum,&buf))!= PFE_OK){
+//			PF_PrintError("first buffer\n");
+//			exit(1);
+//		}
+//		*((int *)buf) = i;
+//		if ((error=PF_UnfixPage(fd2,pagenum,TRUE))!= PFE_OK){
+//			PF_PrintError("unfix file1");
+//			exit(1);
+//		}
+//		printf("alloc %d file1\n",i,pagenum);
+//
+//		if ((error=PF_AllocPage(fd1,&pagenum,&buf))!= PFE_OK){
+//			PF_PrintError("first buffer\n");
+//			exit(1);
+//		}
+//		*((int *)buf) = i;
+//		if ((error=PF_UnfixPage(fd1,pagenum,TRUE))!= PFE_OK){
+//			PF_PrintError("dispose file1");
+//			exit(1);
+//		}
+//		printf("alloc %d file2\n",i,pagenum);
+//	}
+//
+//	for (i= PF_MAX_BUFS; i < PF_MAX_BUFS*2; i++){
+//		if (i & 1){
+//			if ((error=PF_DisposePage(fd1,i))!= PFE_OK){
+//				PF_PrintError("dispose fd1");
+//				exit(1);
+//			}
+//			printf("dispose fd1 page %d\n",i);
+//		}
+//		else {
+//			if ((error=PF_DisposePage(fd2,i))!= PFE_OK){
+//				PF_PrintError("dispose fd2");
+//				exit(1);
+//			}
+//			printf("dispose fd2 page %d\n",i);
+//		}
+//	}
+//
+//	printf("getting file2\n");
+//	for (i=PF_MAX_BUFS; i < PF_MAX_BUFS*2; i++){
+//		if (i & 1){
+//			if ((error=PF_GetThisPage(fd2,i,&buf))!=PFE_OK){
+//				PF_PrintError("get this on fd2");
+//				exit(1);
+//			}
+//			printf("%d %d\n",i,*buf);
+//			if ((error=PF_UnfixPage(fd2,i,FALSE))!= PFE_OK){
+//				PF_PrintError("get this on fd2");
+//					exit(1);
+//			}
+//		}
+//	}
+//
+//	printf("getting file1\n");
+//	for (i=PF_MAX_BUFS; i < PF_MAX_BUFS*2; i++){
+//		if (!(i & 1)){
+//			if ((error=PF_GetThisPage(fd1,i,&buf))!=PFE_OK){
+//				PF_PrintError("get this on fd2");
+//				exit(1);
+//			}
+//			printf("%d %d\n",i,*buf);
+//			if ((error=PF_UnfixPage(fd1,i,FALSE))!= PFE_OK){
+//				PF_PrintError("get this on fd2");
+//					exit(1);
+//			}
+//		}
+//	}
+//
+//	/* print the files */
+//	printfile(fd2);
+//
+//	printfile(fd1);
+//
+//	/*put some more stuff into file1 */
+//	printf("putting stuff into holes in fd1\n");
+//	for (i=0; i < (PF_MAX_BUFS/2 -1); i++){
+//		if (PF_AllocPage(fd1,&pagenum,&buf)!= PFE_OK){
+//			PF_PrintError("PF_AllocPage");
+//			exit(1);
+//		}
+//		*buf =pagenum;
+//		if (PF_UnfixPage(fd1,pagenum,TRUE)!= PFE_OK){
+//			PF_PrintError("PF_UnfixPage");
+//			exit(1);
+//		}
+//	}
+//
+//	printf("printing fd1");
+//	printfile(fd1);
+//
+//	PF_CloseFile(fd1);
+//	printf("closed file1\n");
+//
+//	PF_CloseFile(fd2);
+//	printf("closed file2\n");
+//
+//	/* open file1 twice */
+//	if ((fd1=PF_OpenFile(FILE1))<0){
+//		PF_PrintError("open file1");
+//		exit(1);
+//	}
+//	printf("opened file1\n");
+//
+//	/* try to destroy it while it's still open*/
+//	error=PF_DestroyFile(FILE1);
+//	PF_PrintError("destroy file1, should not succeed");
+//
+//
+//	/* get rid of some invalid page */
+//	error=PF_DisposePage(fd1,100);
+//	PF_PrintError("dispose page 100, should fail");
+//
+//
+//	/* get a valid page, and try to dispose it without unfixing.*/
+//	if ((error=PF_GetThisPage(fd1,1,&buf))!=PFE_OK){
+//		PF_PrintError("get this on fd2");
+//		exit(1);
+//	}
+//	printf("got page%d\n",*buf);
+//	error=PF_DisposePage(fd1,1);
+//	PF_PrintError("dispose page1, should fail");
+//
+//	/* Now unfix it */
+//	if ((error=PF_UnfixPage(fd1,1,FALSE))!= PFE_OK){
+//		PF_PrintError("get this on fd2");
+//			exit(1);
+//	}
+//
+//	error=PF_UnfixPage(fd1,1,FALSE);
+//	PF_PrintError("unfix fd1 again, should fail");
+//
+//	if ((fd2=PF_OpenFile(FILE1))<0 ){
+//		PF_PrintError("open file1 again");
+//		exit(1);
+//	}
+//	printf("opened file1 again\n");
+//
+//	printfile(fd1);
+//
+//	printfile(fd2);
+//
+//	if (PF_CloseFile(fd1) != PFE_OK){
+//		PF_PrintError("close fd1");
+//		exit(1);
+//	}
+//
+//	if (PF_CloseFile(fd2)!= PFE_OK){
+//		PF_PrintError("close fd2");
+//		exit(1);
+//	}
+//
+//	/* print the buffer */
+//	printf("buffer:\n");
+//	PFbufPrint();
+//
+//	/* print the hash table */
+//	printf("hash table:\n");
+//	PFhashPrint();
+//}
 /**
  * write data in file having file descriptor as fd.
  * data is written sequentially so we allocate the page write data and unfix data page as we do not require it again
  *
  */
+void sequentialWriteIndex2(int fd,int data,int* hashArray,int *currentPageNo){
+
+	int *buf;
+	int error,pagenum;
+	char updateIndexArray[100];
+	char dataInput[100];
+
+	char dataToWrite[100],pageNumberStr[20];
+	if(*currentPageNo<0){
+		if ((error=PF_AllocPage(fd,&pagenum,(char **)&buf))!= PFE_OK){
+			PF_PrintError("first buffer\n");
+			exit(1);
+		}
+		*currentPageNo = pagenum;
+		sprintf(dataToWrite,"%d",data);
+		strcpy(buf,dataToWrite);
+		//unfix as it is sequential write
+		if ((error=PF_UnfixPage(fd,pagenum,TRUE))!= PFE_OK){
+			PF_PrintError("unfix buffer\n");
+			exit(1);
+		}
+
+	}else{
+		pagenum=*currentPageNo-1;
+		if((error=PF_GetNextPage(fd,&pagenum,&buf))== PFE_OK){
+			*currentPageNo = pagenum;
+			int sizeOfCurrentPage=strlen(buf);
+			if(sizeOfCurrentPage<10){
+				sprintf(dataToWrite,",%d",data);
+				strcat(buf,dataToWrite);
+				//unfix as it is sequential write
+				if ((error=PF_UnfixPage(fd,pagenum,TRUE))!= PFE_OK){
+					PF_PrintError("unfix buffer\n");
+					exit(1);
+				}
+			}else{
+				if ((error=PF_UnfixPage(fd,pagenum,TRUE))!= PFE_OK){
+					PF_PrintError("unfix buffer\n");
+					exit(1);
+				}
+				if ((error=PF_AllocPage(fd,&pagenum,(char **)&buf))!= PFE_OK){
+					PF_PrintError("first buffer\n");
+					exit(1);
+				}
+				*currentPageNo = pagenum;
+				sprintf(dataToWrite,"%d",data);
+				strcpy(buf,dataToWrite);
+				//unfix as it is sequential write
+				if ((error=PF_UnfixPage(fd,pagenum,TRUE))!= PFE_OK){
+					PF_PrintError("unfix buffer\n");
+					exit(1);
+				}
+			}
+		}
+	}
+
+
+}
 void sequentialWriteIndex(int fd,int data,int* hashArray,int pageNumber){
 	int *buf;
 	int error,pagenum;
@@ -320,6 +380,9 @@ void sequentialWriteIndex(int fd,int data,int* hashArray,int pageNumber){
 			exit(1);
 		}
 		hashArray[data] = pagenum;
+//		if(data==74){TODO resolve essuee of 74
+//			pageNumber=pageNumber+1;
+//		}
 		sprintf(dataToWrite,"%d,%d",data,pageNumber);
 		//*((int *)buf) = data;
 		strcpy(buf,dataToWrite);
@@ -333,13 +396,36 @@ void sequentialWriteIndex(int fd,int data,int* hashArray,int pageNumber){
 		pagenum = hashArray[data]-1;
 		if((error=PF_GetNextPage(fd,&pagenum,&buf))== PFE_OK){
 			//strcpy(updateIndexArray,buf);
-			sprintf(pageNumberStr,"%d",pageNumber);
-			strcat(buf,",");
-			strcat(buf,pageNumberStr);
-			if ((error=PF_UnfixPage(fd,pagenum,FALSE))!= PFE_OK){
-				PF_PrintError("unfix");
-				exit(1);
+			int sizeofHashPage=strlen(buf);
+			if(sizeofHashPage>4000){
+				//Allocate ne page and store data in it
+				if ((error=PF_UnfixPage(fd,pagenum,FALSE))!= PFE_OK){
+					PF_PrintError("unfix");
+					exit(1);
+				}
+				if ((error=PF_AllocPage(fd,&pagenum,(char **)&buf))!= PFE_OK){
+					PF_PrintError("first buffer\n");
+					exit(1);
+				}
+				hashArray[data] = pagenum;
+				sprintf(dataToWrite,"%d,%d",data,pageNumber);
+				//*((int *)buf) = data;
+				strcpy(buf,dataToWrite);
+				//unfix as it is sequential write
+				if ((error=PF_UnfixPage(fd,pagenum,TRUE))!= PFE_OK){
+					PF_PrintError("unfix buffer\n");
+					exit(1);
+				}
+			}else{
+				sprintf(pageNumberStr,"%d",pageNumber);
+				strcat(buf,",");
+				strcat(buf,pageNumberStr);
+				if ((error=PF_UnfixPage(fd,pagenum,FALSE))!= PFE_OK){
+					PF_PrintError("unfix");
+					exit(1);
+				}
 			}
+
 		}
 	}
 
@@ -360,8 +446,8 @@ int sequentialWriteInternalData(int fd,char* data){
 		PF_PrintError("first buffer\n");
 		exit(1);
 	}
-	//*((int *)buf) = data;
-	printf("data written to memory %s \n",data);
+	//TODO remove this comment
+//	printf("data written to memory %s \n",data);
 	strcpy(buf,data);
 	//unfix as it is sequential write
 	if ((error=PF_UnfixPage(fd,pagenum,TRUE))!= PFE_OK){
@@ -380,7 +466,7 @@ int extractDataFromInputString(char * input){
 	dataTokensToRead = strtok(NULL,",");
 	dataTokensToRead = strtok(NULL,",");
 	dataTokensToRead = strtok(NULL,",");
-	dataTokensToRead = strtok(NULL,",");
+//	dataTokensToRead = strtok(NULL,",");
 	if(toupper(dataTokensToRead[0])=='M'){
 		//Male is at sixth bit in bitmap representation.
 			data+=64;
@@ -412,8 +498,9 @@ int extractDataFromInputString(char * input){
 	result=data;
 	return result;
 }
-void sequentialWrite(char *fname1,char * fname2,int* hashArray){
-	int fd1,fd2,error,pageNumber;
+bool sequentialWrite(char *fname1,char * fname2,int* hashArray){
+	bool writeStatus=false;
+	int fd1,fd2,error,pageNumber,currentPageNo=-1;
 	char input[100],dataInput[100];
 
 	FILE* fp;
@@ -430,15 +517,23 @@ void sequentialWrite(char *fname1,char * fname2,int* hashArray){
 		exit(1);
 	}
 
-	fp = fopen("testingData","r");
+	fp = fopen(TESTING_DATA_FILE_NAME,"r");
+	if(!fp){
+		printf("file '%s' not found .",TESTING_DATA_FILE_NAME);
+		exit(1);
+	}
 	while(fgets(input,100,fp)){
-		printf("%s",input);
+		//TODO remove comment
+//		printf("%s",input);
 		strcpy(dataInput,input);
 		dataToBeStored=extractDataFromInputString(input);
-		printf("%s",dataInput);
+//		printf("%s",dataInput);
 		if(dataToBeStored>=0){
+			if(dataToBeStored==74){
+				printf("wait");
+			}
 			pageNumber = sequentialWriteInternalData(fd2,dataInput);
-			sequentialWriteIndex(fd1,dataToBeStored,hashArray,pageNumber);
+			sequentialWriteIndex2(fd1,dataToBeStored,hashArray,&currentPageNo);
 
 		}
 		memset(&input,0,sizeof(input));
@@ -454,6 +549,7 @@ void sequentialWrite(char *fname1,char * fname2,int* hashArray){
 		PF_PrintError("close file2\n");
 		exit(1);
 	}
+	return writeStatus;
 }
 
 /************************************************************
@@ -659,6 +755,18 @@ int getRandomNum()
     randomnumber = rand() % 10;
     printf("random number : %d\n", randomnumber);
     return randomnumber;
+}
+void accessDataUsingindex2(char* fname1,char*fname2,int* hashArray){
+	int fd1,fd2,error;
+	if ((fd1=PF_OpenFile(fname1))<0){
+		PF_PrintError("open file1");
+		exit(1);
+	}
+	if ((fd2=PF_OpenFile(fname2))<0){
+		PF_PrintError("open file2");
+		exit(1);
+	}
+
 }
 void accessDataUsingindex(char* fname1,char*fname2,int* hashArray){
 	int *buf,*dataBuf;
@@ -885,32 +993,96 @@ void accessDataWithoutindex(char* fname2){
 		exit(1);
 	}
 }
+int countBitMaps(int fd,int queryBitMap){
+	int error;
+	int *buf;
+	int pagenum;
+	int storedBitMap;
+	int counter=0;
+	char* ptrToData = NULL,*saved;
+	char inputReadFromindex[4096];
+
+//		printf("reading file\n");
+		pagenum = -1;
+		while ((error=PF_GetNextPage(fd,&pagenum,&buf))== PFE_OK){
+
+			strcpy(inputReadFromindex,buf);
+			ptrToData = strtok_r(inputReadFromindex,",",&saved);
+			while(ptrToData!=NULL){
+				storedBitMap = atoi(ptrToData);
+				if(storedBitMap==queryBitMap){
+					counter++;
+				}
+				ptrToData = strtok_r(NULL,",",&saved);
+			}
+//			printf("got page %d, %s\n",pagenum,buf);
+			if ((error=PF_UnfixPage(fd,pagenum,FALSE))!= PFE_OK){
+				PF_PrintError("unfix");
+				exit(1);
+			}
+		}
+		if (error != PFE_EOF){
+			PF_PrintError("not eof\n");
+			exit(1);
+		}
+//		printf("eof reached\n");
+return counter;
+}
+int getNumberOfBitMapsPresentForGivenValue(char *bitMapFile,int bitMapValue)
+
+{
+int error;
+int *buf;
+int pagenum;
+int fd;
+
+//	printf("opening %s\n",bitMapFile);
+	if ((fd=PF_OpenFile(bitMapFile))<0){
+		PF_PrintError("open file");
+		exit(1);
+	}
+	return countBitMaps(fd,bitMapValue);
+	if ((error=PF_CloseFile(fd))!= PFE_OK){
+		PF_PrintError("close file");
+		exit(1);
+	}
+	return 0;
+}
+
 int main(){
 	int error;
 	int hashArray[10000];
 	/* create a few files */
-	remove(FILE1);
-	remove(FILE2);
-	int indexArray[4096];
-	memset(&indexArray, -1, sizeof indexArray);
-	memset(&hashArray,-1,sizeof(hashArray));
-	if ((error=PF_CreateFile(FILE1))!= PFE_OK){
-		PF_PrintError("file1");
-		exit(1);
-	}
-	printf("file1 created\n");
+//	remove(FILE1);
+//	remove(FILE2);
+//	int indexArray[4096];
+//	memset(&indexArray, -1, sizeof indexArray);
+//	memset(&hashArray,-1,sizeof(hashArray));
+//	if ((error=PF_CreateFile(FILE1))!= PFE_OK){
+//		PF_PrintError("file1");
+//		exit(1);
+//	}
+//	printf("file1 created\n");
 
-	if ((error=PF_CreateFile(FILE2))!= PFE_OK){
-		PF_PrintError("file2");
-	exit(1);
-	}
-	printf("file2 created\n");
-	sequentialWrite(FILE1,FILE2,hashArray);
+//	if ((error=PF_CreateFile(FILE2))!= PFE_OK){
+//		PF_PrintError("file2");
+//	exit(1);
+//	}
+//	printf("file2 created\n");
+//	sequentialWrite(FILE1,FILE2,hashArray);
+	int option;
+	while(1){
+		printf("Enter Query bitmap :");
+		scanf("%d",&option);
+		printf("For the Given Query bit map number of record present are : %d\n",getNumberOfBitMapsPresentForGivenValue(FILE1,option));
 
-	readfileData(FILE1);
-	readfileData(FILE2);
-	accessDataUsingindex(FILE1,FILE2,hashArray);
-	accessDataWithoutindex(FILE2);
+
+	}
+
+//	readfileData(FILE1);
+//	readfileData(FILE2);
+//	accessDataUsingindex(FILE1,FILE2,hashArray);
+//	accessDataWithoutindex(FILE2);
 
 return 0;
 }
